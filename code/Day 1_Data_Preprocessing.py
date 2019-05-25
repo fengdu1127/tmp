@@ -6,6 +6,7 @@ import pandas as pd
 
 #Step 2: Importing dataset
 dataset = pd.read_csv('../datasets/Data.csv')
+print(dataset.head())
 X = dataset.iloc[ : , :-1].values
 Y = dataset.iloc[ : , 3].values
 print("Step 2: Importing dataset")
@@ -29,6 +30,7 @@ print(X)
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 labelencoder_X = LabelEncoder()
 X[ : , 0] = labelencoder_X.fit_transform(X[ : , 0])
+print(X)
 #Creating a dummy variable
 onehotencoder = OneHotEncoder(categorical_features = [0])
 X = onehotencoder.fit_transform(X).toarray()
