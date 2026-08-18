@@ -1,0 +1,669 @@
+<title>利率罗盘</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&family=Noto+Sans+SC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #F2F4F6;
+    --panel: #FFFFFF;
+    --panel-2: #F7F9FA;
+    --ink: #1B2530;
+    --muted: #5B6B7A;
+    --line: #DDE3E9;
+    --accent: #0E6B63;
+    --accent-soft: #E3F0EE;
+    --accent-ink: #0A524C;
+    --warn: #B45309;
+    --warn-soft: #FDF0E0;
+    --shadow: 0 1px 2px rgba(27,37,48,.06), 0 8px 24px rgba(27,37,48,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0F161C;
+      --panel: #17212A;
+      --panel-2: #1C2833;
+      --ink: #E8EDF1;
+      --muted: #93A3B1;
+      --line: #2A3743;
+      --accent: #3BB8AA;
+      --accent-soft: #143530;
+      --accent-ink: #7DD6CB;
+      --warn: #E8A055;
+      --warn-soft: #3A2A16;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0F161C;
+    --panel: #17212A;
+    --panel-2: #1C2833;
+    --ink: #E8EDF1;
+    --muted: #93A3B1;
+    --line: #2A3743;
+    --accent: #3BB8AA;
+    --accent-soft: #143530;
+    --accent-ink: #7DD6CB;
+    --warn: #E8A055;
+    --warn-soft: #3A2A16;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 40px 20px 64px; }
+
+  header.site { margin-bottom: 28px; }
+  h1 {
+    font-family: "Noto Serif SC", serif;
+    font-weight: 700;
+    font-size: 30px;
+    margin: 0 0 4px;
+    letter-spacing: .02em;
+  }
+  .tagline { color: var(--muted); margin: 0; }
+
+  .grid { display: grid; grid-template-columns: 380px 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 880px) { .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 22px;
+  }
+  .card h2 {
+    font-family: "Noto Serif SC", serif;
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0 0 16px;
+  }
+
+  .field-label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: .08em;
+    margin-bottom: 6px;
+  }
+
+  .seg { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .seg button {
+    flex: 1 1 auto;
+    padding: 7px 10px;
+    font: inherit;
+    font-size: 13.5px;
+    color: var(--ink);
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 700;
+  }
+  .seg button:focus-visible, input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .inputs { display: flex; flex-direction: column; gap: 14px; }
+  .input-row { display: flex; flex-direction: column; gap: 4px; }
+  .input-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .input-head label { font-size: 13.5px; font-weight: 500; }
+  .solve-pick {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; color: var(--muted); cursor: pointer; user-select: none;
+  }
+  .solve-pick input { accent-color: var(--accent); margin: 0; }
+  .input-row input[type="number"] {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 15px;
+    padding: 8px 10px;
+    color: var(--ink);
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    width: 100%;
+  }
+  .input-row input[type="number"]:disabled {
+    background: var(--accent-soft);
+    border-style: dashed;
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+  .input-row .hint { font-size: 12px; color: var(--muted); }
+
+  .msg {
+    margin-top: 14px;
+    padding: 10px 12px;
+    border-radius: 7px;
+    font-size: 13px;
+    background: var(--warn-soft);
+    color: var(--warn);
+    display: none;
+  }
+  .msg.show { display: block; }
+
+  .headline {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px;
+    padding-bottom: 16px; border-bottom: 1px solid var(--line); margin-bottom: 16px;
+  }
+  .headline .label { font-size: 13px; color: var(--muted); }
+  .headline .value {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 34px; font-weight: 500;
+    color: var(--accent-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .headline .unit { font-size: 15px; color: var(--muted); }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .tile {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .tile .t-label { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+  .tile .t-value {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 16.5px; font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+  .tile.irr { background: var(--accent-soft); border-color: var(--accent); }
+  .tile.irr .t-value { color: var(--accent-ink); }
+
+  details.sched { margin-top: 18px; }
+  details.sched summary {
+    cursor: pointer; font-size: 13.5px; font-weight: 500; color: var(--accent-ink);
+    user-select: none;
+  }
+  .table-scroll { overflow-x: auto; max-height: 380px; overflow-y: auto; margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td {
+    padding: 6px 12px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-family: "IBM Plex Mono", monospace;
+    white-space: nowrap;
+  }
+  th {
+    font-family: "Noto Sans SC", sans-serif;
+    font-weight: 500; color: var(--muted);
+    position: sticky; top: 0;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  tbody tr:nth-child(even) { background: var(--panel-2); }
+
+  .conv { margin-top: 20px; }
+  .conv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+  .conv-note { font-size: 12.5px; color: var(--muted); margin: 12px 0 0; }
+  .conv-note code {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px;
+    background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: 4px; padding: 1px 5px;
+  }
+
+  footer.note { margin-top: 24px; font-size: 12.5px; color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <header class="site">
+    <h1>利率罗盘</h1>
+    <p class="tagline">给定贷款金额、还款方式、月供、期限中的任意三项，反推第四项；并给出名义年化 APR 与实际年化 IRR。</p>
+  </header>
+
+  <div class="grid">
+    <section class="card" aria-label="输入">
+      <h2>贷款要素</h2>
+
+      <span class="field-label">还款方式</span>
+      <div class="seg" id="methodSeg" role="group" aria-label="还款方式"></div>
+
+      <div class="inputs" id="inputArea"></div>
+
+      <div class="input-row" style="margin-top:14px">
+        <div class="input-head"><label for="f_fee">期初费用 / 砍头息（元，可选）</label></div>
+        <input type="number" id="f_fee" min="0" step="any" placeholder="0">
+        <span class="hint">从放款中先行扣除的费用。填写后，实际 IRR 按到手金额计算。</span>
+      </div>
+
+      <div class="msg" id="msg" role="alert"></div>
+    </section>
+
+    <section class="card" aria-label="结果">
+      <h2>测算结果</h2>
+      <div class="headline">
+        <span class="label" id="hlLabel">—</span>
+        <span class="value" id="hlValue">—</span>
+        <span class="unit" id="hlUnit"></span>
+      </div>
+      <div class="tiles" id="tiles"></div>
+
+      <details class="sched" id="schedWrap">
+        <summary>查看还款计划表</summary>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>期数</th><th>还款额</th><th>本金</th><th>利息</th><th>剩余本金</th></tr></thead>
+            <tbody id="schedBody"></tbody>
+          </table>
+        </div>
+      </details>
+    </section>
+  </div>
+
+  <section class="card conv" aria-label="利率互算">
+    <h2>IRR 与 APR 互算</h2>
+    <div class="conv-grid">
+      <div class="input-row">
+        <div class="input-head"><label for="c_m">月利率（%）</label></div>
+        <input type="number" id="c_m" step="any" placeholder="如 0.75">
+      </div>
+      <div class="input-row">
+        <div class="input-head"><label for="c_apr">名义年化 APR（%）</label></div>
+        <input type="number" id="c_apr" step="any" placeholder="如 9.00">
+        <span class="hint">月利率 × 12</span>
+      </div>
+      <div class="input-row">
+        <div class="input-head"><label for="c_irr">实际年化 IRR（%）</label></div>
+        <input type="number" id="c_irr" step="any" placeholder="如 9.38">
+        <span class="hint">(1 + 月利率)¹² − 1</span>
+      </div>
+    </div>
+    <p class="conv-note">修改任意一项，其余两项自动换算。换算关系：<code>APR = 12 × r月</code>，<code>IRR = (1 + r月)¹² − 1</code>。监管披露口径（中国人民银行 2021 年第 3 号公告）要求按 IRR 展示年化利率。</p>
+  </section>
+
+  <footer class="note">利率求解无解析解时采用二分法数值求解；结果仅供测算参考，实际以合同与放款机构的还款计划为准。</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var METHODS = {
+    annuity: {
+      label: "等额本息",
+      fields: [
+        { key: "P", label: "贷款金额（元）", unit: "元", hint: "" },
+        { key: "M", label: "月供（元）", unit: "元", hint: "每月固定还款额" },
+        { key: "n", label: "期限（月）", unit: "月", hint: "" },
+        { key: "r", label: "利率（名义年化 %）", unit: "%", hint: "月利率 = 年利率 ÷ 12" }
+      ],
+      solvable: ["P", "M", "n", "r"]
+    },
+    linear: {
+      label: "等额本金",
+      fields: [
+        { key: "P", label: "贷款金额（元）", unit: "元", hint: "" },
+        { key: "M", label: "首期月供（元）", unit: "元", hint: "首月还款额，此后逐月递减" },
+        { key: "n", label: "期限（月）", unit: "月", hint: "" },
+        { key: "r", label: "利率（名义年化 %）", unit: "%", hint: "" }
+      ],
+      solvable: ["P", "M", "n", "r"]
+    },
+    interestOnly: {
+      label: "先息后本",
+      fields: [
+        { key: "P", label: "贷款金额（元）", unit: "元", hint: "" },
+        { key: "M", label: "每月利息（元）", unit: "元", hint: "末期另加还全部本金" },
+        { key: "n", label: "期限（月）", unit: "月", hint: "利率与期限无关，仅影响计划表" },
+        { key: "r", label: "利率（名义年化 %）", unit: "%", hint: "" }
+      ],
+      solvable: ["P", "M", "r"]
+    },
+    bullet: {
+      label: "一次性还本付息",
+      fields: [
+        { key: "P", label: "贷款金额（元）", unit: "元", hint: "" },
+        { key: "M", label: "到期还款总额（元）", unit: "元", hint: "本金与利息一次性偿还" },
+        { key: "n", label: "期限（月）", unit: "月", hint: "" },
+        { key: "r", label: "利率（名义年化 %）", unit: "%", hint: "按月复利口径" }
+      ],
+      solvable: ["P", "M", "n", "r"]
+    }
+  };
+
+  var state = { method: "annuity", target: "r", values: { P: 120000, M: 3800, n: 36, r: "" } };
+
+  var seg = document.getElementById("methodSeg");
+  var inputArea = document.getElementById("inputArea");
+  var msgEl = document.getElementById("msg");
+  var feeEl = document.getElementById("f_fee");
+
+  function fmtMoney(x) {
+    return x.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function fmtPct(x, d) {
+    return (x * 100).toFixed(d == null ? 2 : d) + "%";
+  }
+
+  function bisect(f, lo, hi) {
+    var flo = f(lo);
+    for (var i = 0; i < 200; i++) {
+      var mid = (lo + hi) / 2;
+      var fm = f(mid);
+      if ((fm > 0) === (flo > 0)) { lo = mid; flo = fm; } else { hi = mid; }
+    }
+    return (lo + hi) / 2;
+  }
+
+  function pmt(P, r, n) {
+    if (r === 0) return P / n;
+    var g = Math.pow(1 + r, n);
+    return P * r * g / (g - 1);
+  }
+
+  // 每种方式：给定其余字段求目标字段。r 为月利率（小数），返回 {value} 或 {error}
+  var solvers = {
+    annuity: {
+      M: function (v) { return { value: pmt(v.P, v.r, v.n) }; },
+      P: function (v) {
+        if (v.r === 0) return { value: v.M * v.n };
+        return { value: v.M * (1 - Math.pow(1 + v.r, -v.n)) / v.r };
+      },
+      n: function (v) {
+        if (v.r === 0) return { value: v.P / v.M };
+        if (v.M <= v.P * v.r) return { error: "月供不足以覆盖利息（月供需大于 本金×月利率），无法还清。" };
+        return { value: Math.log(v.M / (v.M - v.P * v.r)) / Math.log(1 + v.r) };
+      },
+      r: function (v) {
+        if (v.M * v.n < v.P) return { error: "月供总额小于本金，隐含利率为负，请检查输入。" };
+        if (v.M * v.n === v.P) return { value: 0 };
+        return { value: bisect(function (r) { return pmt(v.P, r, v.n) - v.M; }, 1e-9, 1) };
+      }
+    },
+    linear: {
+      M: function (v) { return { value: v.P / v.n + v.P * v.r }; },
+      r: function (v) {
+        var r = (v.M - v.P / v.n) / v.P;
+        if (r < 0) return { error: "首期月供小于每期应还本金，隐含利率为负，请检查输入。" };
+        return { value: r };
+      },
+      P: function (v) { return { value: v.M / (1 / v.n + v.r) }; },
+      n: function (v) {
+        if (v.M <= v.P * v.r) return { error: "首期月供不足以覆盖首月利息，无法求解期限。" };
+        return { value: v.P / (v.M - v.P * v.r) };
+      }
+    },
+    interestOnly: {
+      M: function (v) { return { value: v.P * v.r }; },
+      r: function (v) { return { value: v.M / v.P }; },
+      P: function (v) {
+        if (v.r === 0) return { error: "利率为 0 时无法由利息反推本金。" };
+        return { value: v.M / v.r };
+      }
+    },
+    bullet: {
+      M: function (v) { return { value: v.P * Math.pow(1 + v.r, v.n) }; },
+      P: function (v) { return { value: v.M / Math.pow(1 + v.r, v.n) }; },
+      n: function (v) {
+        if (v.r === 0 || v.M <= v.P) return { error: "需满足 到期还款总额 > 本金 且 利率 > 0 才能求期限。" };
+        return { value: Math.log(v.M / v.P) / Math.log(1 + v.r) };
+      },
+      r: function (v) {
+        if (v.M < v.P) return { error: "到期还款总额小于本金，隐含利率为负，请检查输入。" };
+        return { value: Math.pow(v.M / v.P, 1 / v.n) - 1 };
+      }
+    }
+  };
+
+  // 生成还款计划：返回 [{pay, principal, interest, balance}]
+  function buildSchedule(method, P, r, n, M) {
+    var rows = [], bal = P, i, interest, principal, pay;
+    n = Math.round(n);
+    if (method === "annuity") {
+      for (i = 1; i <= n; i++) {
+        interest = bal * r;
+        pay = (i === n) ? bal + interest : M;
+        principal = pay - interest;
+        bal = Math.max(0, bal - principal);
+        rows.push({ pay: pay, principal: principal, interest: interest, balance: bal });
+      }
+    } else if (method === "linear") {
+      var per = P / n;
+      for (i = 1; i <= n; i++) {
+        interest = bal * r;
+        principal = (i === n) ? bal : per;
+        bal = Math.max(0, bal - principal);
+        rows.push({ pay: principal + interest, principal: principal, interest: interest, balance: bal });
+      }
+    } else if (method === "interestOnly") {
+      for (i = 1; i <= n; i++) {
+        interest = P * r;
+        principal = (i === n) ? P : 0;
+        bal = P - (i === n ? P : 0);
+        rows.push({ pay: interest + principal, principal: principal, interest: interest, balance: bal });
+      }
+    } else { // bullet
+      var F = P * Math.pow(1 + r, n);
+      for (i = 1; i <= n; i++) {
+        if (i === n) rows.push({ pay: F, principal: P, interest: F - P, balance: 0 });
+        else rows.push({ pay: 0, principal: 0, interest: 0, balance: P });
+      }
+    }
+    return rows;
+  }
+
+  function irrMonthly(netProceeds, cashflows) {
+    var f = function (r) {
+      var s = -netProceeds;
+      for (var k = 0; k < cashflows.length; k++) s += cashflows[k] / Math.pow(1 + r, k + 1);
+      return s;
+    };
+    if (f(0) <= 0) return null; // 总还款不高于到手金额，IRR ≤ 0
+    return bisect(f, 1e-9, 2);
+  }
+
+  function renderMethodSeg() {
+    seg.innerHTML = "";
+    Object.keys(METHODS).forEach(function (key) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = METHODS[key].label;
+      b.setAttribute("aria-pressed", String(key === state.method));
+      b.addEventListener("click", function () {
+        state.method = key;
+        if (METHODS[key].solvable.indexOf(state.target) < 0) state.target = METHODS[key].solvable[0];
+        renderMethodSeg(); renderInputs(); compute();
+      });
+      seg.appendChild(b);
+    });
+  }
+
+  function renderInputs() {
+    inputArea.innerHTML = "";
+    var m = METHODS[state.method];
+    m.fields.forEach(function (f) {
+      var row = document.createElement("div");
+      row.className = "input-row";
+
+      var head = document.createElement("div");
+      head.className = "input-head";
+      var label = document.createElement("label");
+      label.textContent = f.label;
+      label.htmlFor = "f_" + f.key;
+      head.appendChild(label);
+
+      if (m.solvable.indexOf(f.key) >= 0) {
+        var pick = document.createElement("label");
+        pick.className = "solve-pick";
+        var radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = "solveTarget";
+        radio.checked = state.target === f.key;
+        radio.addEventListener("change", function () {
+          state.target = f.key;
+          renderInputs(); compute();
+        });
+        pick.appendChild(radio);
+        pick.appendChild(document.createTextNode("求解此项"));
+        head.appendChild(pick);
+      }
+      row.appendChild(head);
+
+      var input = document.createElement("input");
+      input.type = "number";
+      input.id = "f_" + f.key;
+      input.step = "any";
+      input.min = "0";
+      if (state.target === f.key) {
+        input.disabled = true;
+        input.placeholder = "待求解";
+      } else {
+        input.value = state.values[f.key];
+        input.addEventListener("input", function () {
+          state.values[f.key] = input.value;
+          compute();
+        });
+      }
+      row.appendChild(input);
+
+      if (f.hint) {
+        var hint = document.createElement("span");
+        hint.className = "hint";
+        hint.textContent = f.hint;
+        row.appendChild(hint);
+      }
+      inputArea.appendChild(row);
+    });
+  }
+
+  function showMsg(text) {
+    msgEl.textContent = text || "";
+    msgEl.className = text ? "msg show" : "msg";
+  }
+
+  function setHeadline(label, value, unit) {
+    document.getElementById("hlLabel").textContent = label;
+    document.getElementById("hlValue").textContent = value;
+    document.getElementById("hlUnit").textContent = unit || "";
+  }
+
+  function renderTiles(items) {
+    var box = document.getElementById("tiles");
+    box.innerHTML = "";
+    items.forEach(function (it) {
+      var t = document.createElement("div");
+      t.className = "tile" + (it.em ? " irr" : "");
+      var l = document.createElement("div"); l.className = "t-label"; l.textContent = it.label;
+      var v = document.createElement("div"); v.className = "t-value"; v.textContent = it.value;
+      t.appendChild(l); t.appendChild(v);
+      box.appendChild(t);
+    });
+  }
+
+  function renderSchedule(rows) {
+    var body = document.getElementById("schedBody");
+    body.innerHTML = "";
+    rows.forEach(function (row, i) {
+      var tr = document.createElement("tr");
+      [i + 1, fmtMoney(row.pay), fmtMoney(row.principal), fmtMoney(row.interest), fmtMoney(row.balance)]
+        .forEach(function (cell) {
+          var td = document.createElement("td");
+          td.textContent = cell;
+          tr.appendChild(td);
+        });
+      body.appendChild(tr);
+    });
+  }
+
+  function compute() {
+    var m = METHODS[state.method];
+    var v = {};
+    var missing = false;
+    m.fields.forEach(function (f) {
+      if (f.key === state.target) return;
+      var raw = parseFloat(state.values[f.key]);
+      if (!isFinite(raw) || raw < 0) { missing = true; return; }
+      v[f.key] = (f.key === "r") ? raw / 1200 : raw; // 年化% -> 月利率
+    });
+    if (missing || (v.n !== undefined && v.n === 0)) {
+      setHeadline("—", "—", "");
+      renderTiles([]);
+      renderSchedule([]);
+      showMsg(missing ? "请填写除求解项外的全部字段。" : "期限需大于 0。");
+      return;
+    }
+
+    var res = solvers[state.method][state.target](v);
+    if (res.error) {
+      setHeadline("—", "—", "");
+      renderTiles([]); renderSchedule([]);
+      showMsg(res.error);
+      return;
+    }
+    showMsg("");
+    v[state.target] = res.value;
+
+    var targetField = m.fields.filter(function (f) { return f.key === state.target; })[0];
+    var headlineValue, headlineUnit = targetField.unit;
+    if (state.target === "r") { headlineValue = fmtPct(v.r * 12); headlineUnit = "名义年化"; }
+    else if (state.target === "n") { headlineValue = Math.ceil(v.n - 1e-9) + ""; headlineUnit = "月（向上取整）"; }
+    else headlineValue = fmtMoney(v[state.target]);
+    setHeadline(targetField.label.replace(/（.*/, ""), headlineValue, headlineUnit);
+
+    var n = Math.max(1, Math.round(state.target === "n" ? Math.ceil(v.n - 1e-9) : v.n));
+    var rows = buildSchedule(state.method, v.P, v.r, n, v.M);
+    var totalPay = 0, totalInterest = 0;
+    rows.forEach(function (row) { totalPay += row.pay; totalInterest += row.interest; });
+
+    var fee = parseFloat(feeEl.value);
+    if (!isFinite(fee) || fee < 0) fee = 0;
+    var net = v.P - fee;
+    var irrM = net > 0 ? irrMonthly(net, rows.map(function (row) { return row.pay; })) : null;
+    var irrAnnual = irrM === null ? null : Math.pow(1 + irrM, 12) - 1;
+
+    renderTiles([
+      { label: "实际年化 IRR" + (fee > 0 ? "（含期初费用）" : ""), value: irrAnnual === null ? "≤ 0%" : fmtPct(irrAnnual), em: true },
+      { label: "名义年化 APR", value: fmtPct(v.r * 12) },
+      { label: "月利率", value: fmtPct(v.r, 4) },
+      { label: "还款总额", value: fmtMoney(totalPay) + " 元" },
+      { label: "利息总额", value: fmtMoney(totalInterest) + " 元" },
+      { label: fee > 0 ? "实际到手金额" : "贷款金额", value: fmtMoney(net) + " 元" }
+    ]);
+    renderSchedule(rows);
+  }
+
+  feeEl.addEventListener("input", compute);
+
+  // ---- IRR / APR 互算 ----
+  var cM = document.getElementById("c_m"), cApr = document.getElementById("c_apr"), cIrr = document.getElementById("c_irr");
+  function fromMonthly(m) {
+    cApr.value = (m * 12).toFixed(4).replace(/\.?0+$/, "");
+    cIrr.value = ((Math.pow(1 + m / 100, 12) - 1) * 100).toFixed(4).replace(/\.?0+$/, "");
+  }
+  cM.addEventListener("input", function () {
+    var m = parseFloat(cM.value);
+    if (isFinite(m)) fromMonthly(m);
+  });
+  cApr.addEventListener("input", function () {
+    var a = parseFloat(cApr.value);
+    if (!isFinite(a)) return;
+    var m = a / 12;
+    cM.value = m.toFixed(4).replace(/\.?0+$/, "");
+    cIrr.value = ((Math.pow(1 + m / 100, 12) - 1) * 100).toFixed(4).replace(/\.?0+$/, "");
+  });
+  cIrr.addEventListener("input", function () {
+    var i = parseFloat(cIrr.value);
+    if (!isFinite(i) || i <= -100) return;
+    var m = (Math.pow(1 + i / 100, 1 / 12) - 1) * 100;
+    cM.value = m.toFixed(4).replace(/\.?0+$/, "");
+    cApr.value = (m * 12).toFixed(4).replace(/\.?0+$/, "");
+  });
+
+  renderMethodSeg();
+  renderInputs();
+  compute();
+})();
+</script>
