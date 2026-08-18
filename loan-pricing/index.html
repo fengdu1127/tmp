@@ -216,6 +216,17 @@
   }
 
   footer.note { margin-top: 24px; font-size: 12.5px; color: var(--muted); }
+
+  td.name-cell { text-align: left; font-family: "Noto Sans SC", sans-serif; }
+  td.bar-cell { text-align: left; }
+  .irr-bar {
+    height: 10px; border-radius: 3px;
+    background: var(--accent);
+    min-width: 2px;
+  }
+  .irr-bar.flat { background: var(--warn); }
+  tr.flat-row td { color: var(--warn); }
+  tr.flat-row td.name-cell { font-weight: 700; }
 </style>
 
 <div class="wrap">
@@ -262,6 +273,31 @@
       </details>
     </section>
   </div>
+
+  <section class="card conv" aria-label="同一APR对比">
+    <h2>同一 APR 下各还款方式的 IRR 对比</h2>
+    <div class="conv-grid" style="margin-bottom:16px">
+      <div class="input-row">
+        <div class="input-head"><label for="cmp_apr">名义年化 APR（%）</label></div>
+        <input type="number" id="cmp_apr" min="0" step="any" value="12">
+      </div>
+      <div class="input-row">
+        <div class="input-head"><label for="cmp_p">贷款金额（元）</label></div>
+        <input type="number" id="cmp_p" min="0" step="any" value="100000">
+      </div>
+      <div class="input-row">
+        <div class="input-head"><label for="cmp_n">期限（月）</label></div>
+        <input type="number" id="cmp_n" min="1" step="1" value="36">
+      </div>
+    </div>
+    <div class="table-scroll" style="max-height:none">
+      <table>
+        <thead><tr><th style="text-align:left">还款方式</th><th>月 IRR</th><th>实际年化 IRR</th><th style="text-align:left;min-width:140px">　</th><th>总利息</th></tr></thead>
+        <tbody id="cmpBody"></tbody>
+      </table>
+    </div>
+    <p class="conv-note" id="cmpNote">按剩余本金计息的方式（等额本息 / 等额本金 / 先息后本）IRR 恒等于月利率，只是总利息不同——那是本金占用时间的差异，不是定价差异。<strong>等本等息</strong>按原始本金全程计息（常见的"月费率"报价），同样的标称利率，实际 IRR 接近两倍，故单列对比。</p>
+  </section>
 
   <section class="card conv" aria-label="利率互算">
     <h2>IRR 与 APR 互算</h2>
@@ -636,6 +672,89 @@
   }
 
   feeEl.addEventListener("input", compute);
+
+  // ---- 同一 APR 各还款方式 IRR 对比 ----
+  var cmpApr = document.getElementById("cmp_apr"), cmpP = document.getElementById("cmp_p"),
+      cmpN = document.getElementById("cmp_n"), cmpBody = document.getElementById("cmpBody");
+
+  function cashflowsFor(kind, P, r, n) {
+    var cf = [], bal = P, i;
+    if (kind === "annuity") {
+      var M = pmt(P, r, n);
+      for (i = 0; i < n; i++) cf.push(M);
+    } else if (kind === "linear") {
+      for (i = 0; i < n; i++) { cf.push(P / n + bal * r); bal -= P / n; }
+    } else if (kind === "interestOnly") {
+      for (i = 0; i < n; i++) cf.push(P * r);
+      cf[n - 1] += P;
+    } else if (kind === "bulletSimple") {
+      for (i = 0; i < n - 1; i++) cf.push(0);
+      cf.push(P * (1 + r * n));
+    } else if (kind === "bulletCompound") {
+      for (i = 0; i < n - 1; i++) cf.push(0);
+      cf.push(P * Math.pow(1 + r, n));
+    } else { // flat 等本等息
+      for (i = 0; i < n; i++) cf.push(P / n + P * r);
+    }
+    return cf;
+  }
+
+  var CMP_ROWS = [
+    { kind: "annuity", label: "等额本息" },
+    { kind: "linear", label: "等额本金" },
+    { kind: "interestOnly", label: "先息后本" },
+    { kind: "bulletSimple", label: "一次性还本付息（单利）" },
+    { kind: "bulletCompound", label: "一次性还本付息（按月复利）" },
+    { kind: "flat", label: "等本等息（费率口径，对比项）", flat: true }
+  ];
+
+  function renderCompare() {
+    var apr = parseFloat(cmpApr.value), P = parseFloat(cmpP.value), n = Math.round(parseFloat(cmpN.value));
+    cmpBody.innerHTML = "";
+    if (!isFinite(apr) || apr < 0 || !isFinite(P) || P <= 0 || !isFinite(n) || n < 1) return;
+    var r = apr / 1200;
+    var results = CMP_ROWS.map(function (row) {
+      var cf = cashflowsFor(row.kind, P, r, n);
+      var total = cf.reduce(function (a, b) { return a + b; }, 0);
+      var m = r === 0 ? 0 : irrMonthly(P, cf);
+      var annual = m === null ? 0 : Math.pow(1 + m, 12) - 1;
+      return { row: row, m: m, annual: annual, interest: total - P };
+    });
+    var maxAnnual = results.reduce(function (a, x) { return Math.max(a, x.annual); }, 0);
+    results.forEach(function (res) {
+      var tr = document.createElement("tr");
+      if (res.row.flat) tr.className = "flat-row";
+
+      var tdName = document.createElement("td");
+      tdName.className = "name-cell";
+      tdName.textContent = res.row.label;
+      tr.appendChild(tdName);
+
+      var tdM = document.createElement("td");
+      tdM.textContent = res.m === null ? "—" : fmtPct(res.m, 4);
+      tr.appendChild(tdM);
+
+      var tdA = document.createElement("td");
+      tdA.textContent = res.m === null ? "≤ 0%" : fmtPct(res.annual);
+      tr.appendChild(tdA);
+
+      var tdBar = document.createElement("td");
+      tdBar.className = "bar-cell";
+      var bar = document.createElement("div");
+      bar.className = "irr-bar" + (res.row.flat ? " flat" : "");
+      bar.style.width = (maxAnnual > 0 ? (res.annual / maxAnnual) * 100 : 0) + "%";
+      tdBar.appendChild(bar);
+      tr.appendChild(tdBar);
+
+      var tdI = document.createElement("td");
+      tdI.textContent = fmtMoney(res.interest) + " 元";
+      tr.appendChild(tdI);
+
+      cmpBody.appendChild(tr);
+    });
+  }
+  [cmpApr, cmpP, cmpN].forEach(function (el) { el.addEventListener("input", renderCompare); });
+  renderCompare();
 
   // ---- IRR / APR 互算 ----
   var cM = document.getElementById("c_m"), cApr = document.getElementById("c_apr"), cIrr = document.getElementById("c_irr");
