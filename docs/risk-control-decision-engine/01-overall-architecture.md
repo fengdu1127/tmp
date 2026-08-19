@@ -4,6 +4,7 @@
 > - 01-overall-architecture.md（本文）：系统定位、总体架构、核心模块、非功能性设计与演进路径
 > - [02-unified-event-model.md](./02-unified-event-model.md)：统一事件模型详细设计
 > - [03-feature-platform.md](./03-feature-platform.md)：特征平台详细设计
+> - [04-rule-engine.md](./04-rule-engine.md)：规则引擎详细设计
 
 ## 1. 系统定位与核心矛盾
 
